@@ -1,4 +1,7 @@
-(ns json-parser.core)
+(ns json-parser.core
+  (:require [clojure.data.json :as json]))
+
+(refer 'clojure.string :only '[trim starts-with?])
 
 (declare gen-parser)
 
@@ -66,50 +69,64 @@
 (defn string-parser [string]
       (if ((complement clojure.string/starts-with?) string "\"")
         nil
-        (loop [[fst & rst] (rest string) result ""]
-          (cond
-            (= fst \") (let [remain (subs string (+ 2 (count result)))] (if (empty? remain) [result nil] [result remain]))
-            ;(or (= fst \n) (= fst \t)) nil
-            :else (recur rst (str result fst))))))
+        (loop [rst (subs string 1) result ""]
+          (let [fst (first rst)]
+           (cond
+             (or (= fst \tab) (= fst \newline)) nil
+             (= fst \") (let [remain (subs rst 1)] (if (empty? remain) [result nil] [result remain]))
+             :else (recur (subs rst 1) (str result fst)))))))
+
+;(defn get-array-vals [string]
+;      (let [s (clojure.string/trim string)]
+;          (if (= (first s) \,)
+;          (throw-error)
+;          (loop [remain s, result []]
+;            (let [fst (first remain) rst (clojure.string/trim (subs remain 1))]
+;              (cond
+;                (nil? fst) (throw-error)
+;                (= fst \]) (if (empty? rst) [result nil] [result rst])
+;                (= fst \,) (if-let [[val remaining] (gen-parser rst)]
+;                             (if remaining (recur (clojure.string/trim remaining) (conj result val)) [(conj result val) nil])
+;                             (throw-error))
+;                :else (if-let [[val remaining] (gen-parser remain)]
+;                        (if remaining (recur (clojure.string/trim remaining) (conj result val)) [(conj result val) nil])
+;                        (throw-error))))))))
 
 (defn get-array-vals [string]
-      (let [s (clojure.string/trim string)]
-          (if (= (first s) \,)
-          (throw-error)
-          (loop [remain s, result []]
-            (let [fst (first remain) rst (clojure.string/trim (subs remain 1))]
+      (if (= (first string) \,)
+        (throw-error)
+        (loop [[val remain] (gen-parser (trim string)), result []]
+          (if remain
+            (let [trimmed (trim remain) fst (first trimmed) rst (trim (subs trimmed 1)) res (conj result val)]
               (cond
-                (nil? fst) (throw-error)
-                (= fst \]) (if (empty? rst) [result nil] [result rst])
-                (= fst \,) (if-let [[val remaining] (gen-parser rst)]
-                             (recur (clojure.string/trim remaining) (conj result val))
-                             (throw-error))
-                :else (if-let [[val remaining] (gen-parser remain)]
-                        (recur (clojure.string/trim remaining) (conj result val))
-                        (throw-error))))))))
+               (= fst \]) (if (empty? rst) [res nil] [res rst])
+               (= fst \,) (recur (gen-parser rst) res)
+               :else (throw-error)))
+            (throw-error)))))
 
-(defn array-parser [string]
-      (cond
-        (= (first string) \[) (get-array-vals (subs string 1))
-        :else nil))
+(defn array-parser [s]
+      (let [string (trim s)]
+        (cond
+          (= (first string) \[) (get-array-vals (subs string 1))
+          :else nil)))
 
 (defn get-object-vals [string]
-      (let [s (clojure.string/trim string)]
+      (let [s (trim string)]
         (if (= (first s) \,)
           (throw-error)
           (loop [remain s, key nil, value nil, result {}]
-            (let [fst (first remain) rst (clojure.string/trim (subs remain 1))]
+            (let [fst (first remain) rst (trim (subs remain 1))]
               (cond
                 (nil? fst) (throw-error)
                 (= fst \}) (let [result (if (or key value) (conj result (hash-map key value)) {})] (if (empty? rst) [result nil] [result rst]))
                 (= fst \:) (if-let [[val remaining] (gen-parser rst)]
-                             (recur (clojure.string/trim remaining) key val result)
+                             (recur (trim remaining) key val result)
                              (throw-error))
                 (= fst \,) (if-let [[val remaining] (string-parser rst)]
-                             (recur (clojure.string/trim remaining) val nil (conj result (hash-map key value)))
+                             (recur (trim remaining) val nil (conj result (hash-map key value)))
                              (throw-error))
                 :else (if-let [[val remaining] (string-parser remain)]
-                        (recur (clojure.string/trim remaining) val value result)
+                        (recur (trim remaining) val value result)
                         (throw-error))))))))
 
 (defn object-parser [string]
@@ -126,11 +143,17 @@
             object-parsed (object-parser string)]
         (or null-parsed boolean-parsed string-parsed number-parsed array-parsed object-parsed)))
 
+;(defn json-parser [s]
+;      (let [string (trim s) start (first string) end (get string (dec (count string)))]
+;        (cond
+;          (and (= start \[) (= end \])) (let [[result rst] (array-parser string)] (if rst (throw-error) result))
+;          (and (= start \{) (= end \})) (let [[result rst] (object-parser string)] (if rst (throw-error) result))
+;          :else (throw-error))))
+
 (defn json-parser [s]
-      (let [string (clojure.string/trim s) start (first string) end (get string (dec (count string)))]
+      (let [string (trim s) [parsed remaining] (gen-parser string)]
         (cond
-          (and (= start \[) (= end \])) (let [[result rst] (array-parser string)] (if rst (throw-error) result))
-          (and (= start \{) (= end \})) (let [[result rst] (object-parser string)] (if rst (throw-error) result))
+          (or (vector? parsed) (map? parsed)) (if remaining (throw-error) parsed)
           :else (throw-error))))
 
 (def fail-cases
