@@ -66,29 +66,19 @@
              :else (recur (subs rst 1) (str result fst)))))))
 
 (defn get-arr-obj-vals [string arr]
-      (let [[end? comma-colon?] (if arr [#(= % \]) #(= % \,)] [#(= % \}) #(or (= % \,) (= % \:))])]
+      (let [[end? comma-colon? parser] (if arr
+                                         [#(= % \]) #(= % \,) [gen-parser gen-parser]]
+                                         [#(= % \}) #(or (= % \,) (= % \:)) [string-parser gen-parser]])]
         (if (= (first string) \,)
         (throw-error)
-        (loop [[val remain] (gen-parser (trim string)), result []]
+        (loop [[val remain] ((parser 0) (trim string)), result [], tgle 1]
           (if remain
             (let [trimmed (trim remain) fst (first trimmed) rst (trim (subs trimmed 1)) res (conj result val)]
               (cond
-               (end?) (if (empty? rst) [res nil] [res rst])
-               (comma-colon?) (recur (gen-parser rst) res)
-               :else (throw-error)))
+                 (end? fst) (if (empty? rst) [res nil] [res rst])
+                 (comma-colon? fst) (recur ((parser (mod tgle 2)) rst) res (inc tgle))
+                 :else (throw-error)))
             (throw-error))))))
-
-;(defn get-object-vals [string]
-;      (if (= (first string) \,)
-;        (throw-error)
-;        (loop [[val remain] (gen-parser (trim string)), result []]
-;          (if remain
-;            (let [trimmed (trim remain) fst (first trimmed) rst (trim (subs trimmed 1)) res (conj result val)]
-;              (cond
-;                (= fst \}) (let [result (apply hash-map res)] (if (empty? rst) [result nil] [result rst]))
-;                (or (= fst \:) (= fst \,)) (recur (gen-parser rst) res)
-;                :else (throw-error)))
-;            (throw-error)))))
 
 (defn arr-obj-parser [s]
       (let [string (trim s) fst (first string)]
@@ -97,14 +87,10 @@
           (= fst \{) (update (get-arr-obj-vals (subs string 1) false) 0 #(apply hash-map %))
           :else nil)))
 
-;(defn array-parser [s] (let [string (trim s)] (if (= (first string) \[) (get-array-vals (subs string 1)) nil)))
-;
-;(defn object-parser [s] (let [string (trim s)] (if (= (first string) \{) (get-object-vals (subs string 1)) nil)))
-
 (defn gen-parser [s]
       (let [null (null-parser s) bool (boolean-parser s) string (string-parser s)
-            number (number-parser s) array (array-parser s) obj (object-parser s)]
-        (or null bool string number array obj)))
+            number (number-parser s) arr-obj (arr-obj-parser s)]
+        (or null bool string number arr-obj)))
 
 (defn json-parser [s]
       (let [string (trim s) [parsed remaining] (gen-parser string)]
