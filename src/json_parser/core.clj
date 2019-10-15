@@ -145,5 +145,6 @@
           (>= test-case (count test-cases))
           nil
           (do
-            (println test-case (test-cases test-case) (json-parser (test-cases test-case)))
+            (println "Test case No.:" (inc test-case) \newline (test-cases test-case) \newline (json-parser (test-cases test-case)))
+            (println "---------------------------------------")
             (recur (inc test-case))))))
