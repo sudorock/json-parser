@@ -55,7 +55,7 @@
          (= fst \-) (update (get-number (subs string 1)) 0 #(- %))
          :else nil)))
 
-(def esc-char {\\ \\, \t \tab, \n \newline, \f \formfeed, \b \backspace, \r \return, \" \", \/ \/, \u \u})
+(def esc-char {\\ \\, \t \tab, \n \newline, \f \formfeed, \b \backspace, \r \return, \" \", \/ \/})
 
 (defn get-esc [rst]
       (let [esc (get esc-char (second rst))]
@@ -67,6 +67,7 @@
         (loop [rst (subs string 1) result ""]
           (let [fst (first rst) esc (if (= fst \\) (get-esc rst) nil)]
            (cond
+             ;(and (= fst \\) (= (second rst) \u)) (recur (subs rst 1) result)
              (some? esc) (if (false? esc) nil (recur (subs rst 2) (str result esc)))
              (or (= fst \tab) (= fst \newline)) nil
              (= fst \") (let [remain (subs rst 1)] (if (empty? remain) [result nil] [result remain]))
