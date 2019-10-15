@@ -36,7 +36,7 @@
       (loop [s string, result "0."]
         (let [fst (first s)]
          (cond
-           (nil? fst) (let [res (+ prev (Double/parseDouble result))] (if (empty? res) [res nil] [res s]))
+           (nil? fst) (let [res (+ prev (Double/parseDouble result))] (if (empty? s) [res nil] [res s]))
            (check-digit? fst) (recur (subs s 1) (str result fst))
            (or (= fst \e) (= fst \E)) (number-after-e (+ prev (Double/parseDouble result)) (subs s 1))
            :else [(+ prev (Double/parseDouble result)) s]))))
@@ -52,11 +52,12 @@
             :else [(Integer/parseInt result) s]))))
 
 (defn number-parser [string]
-      (let [fst (first string) snd (second string)]
+      (let [fst (first string) snd (second string) third (get string 2)]
        (cond
-         (and (= fst \0) ((complement check-digit?) snd)) (let [remain (subs string 1)] (if (empty? remain) [0 nil] [0 remain]))
-         (or (clojure.string/starts-with? string "0.") (check-digit? fst)) (get-number string)
-         (or (= fst \0) (= fst \.)) nil
+         (= fst \0) (cond
+                      (check-digit? snd) nil
+                      (= snd \.) (if (check-digit? third) (get-number string) nil)
+                      :else (let [remain (subs string 1)] (if (empty? remain) [0 nil] [0 remain])))
          (= fst \+) (get-number (subs string 1))
          (= fst \-) (update (get-number (subs string 1)) 0 #(- %))
          :else nil)))
