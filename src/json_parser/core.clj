@@ -55,28 +55,17 @@
          (= fst \-) (update (get-number (subs string 1)) 0 #(- %))
          :else nil)))
 
-;(def esc-char {"\\b" \backspace, "\\f" \formfeed, "\\n" \newline, "\\r" \return, "\\t" \tab, "\\\"" \", "\\" \\})
+(def esc-char {\\ \\, \t \tab, \n \newline, \f \formfeed, \b \backspace, \r \return, \" \", \/ \/, \u \u})
 
-(defn get-esc [fst snd]
-      (if (= fst \\)
-        (case snd
-          \\ \\
-          \t \tab
-          \n \newline
-          \f \formfeed
-          \b \backspace
-          \r \return
-          \" \"
-          \/ \/
-          \u \u
-          false)
-        nil))
+(defn get-esc [rst]
+      (let [esc (get esc-char (second rst))]
+        (if (some? esc) esc false)))
 
 (defn string-parser [string]
       (if ((complement starts-with?) string "\"")
         nil
         (loop [rst (subs string 1) result ""]
-          (let [fst (first rst) snd (second rst) esc (get-esc fst snd)]
+          (let [fst (first rst) esc (if (= fst \\) (get-esc rst) nil)]
            (cond
              (some? esc) (if (false? esc) nil (recur (subs rst 2) (str result esc)))
              (or (= fst \tab) (= fst \newline)) nil
