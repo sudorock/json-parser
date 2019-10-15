@@ -55,13 +55,30 @@
          (= fst \-) (update (get-number (subs string 1)) 0 #(- %))
          :else nil)))
 
+;(def esc-char {"\\b" \backspace, "\\f" \formfeed, "\\n" \newline, "\\r" \return, "\\t" \tab, "\\\"" \", "\\" \\})
+
+(defn get-esc [fst snd]
+      (if (= fst \\)
+        (case snd
+          \\ \\
+          \t \tab
+          \n \newline
+          \f \formfeed
+          \b \backspace
+          \r \return
+          \" \"
+          \/ \/
+          \u \u
+          false)
+        nil))
+
 (defn string-parser [string]
       (if ((complement starts-with?) string "\"")
         nil
         (loop [rst (subs string 1) result ""]
-          (let [fst (first rst)]
+          (let [fst (first rst) snd (second rst) esc (get-esc fst snd)]
            (cond
-             (starts-with? rst "\\\"") (recur (subs rst 2) (str result \"))
+             (some? esc) (if (false? esc) nil (recur (subs rst 2) (str result esc)))
              (or (= fst \tab) (= fst \newline)) nil
              (= fst \") (let [remain (subs rst 1)] (if (empty? remain) [result nil] [result remain]))
              :else (recur (subs rst 1) (str result fst)))))))
@@ -96,13 +113,13 @@
 (defn array-parser [s]
       (let [string (trim s)]
         (if (= (first string) \[)
-          (get-array-vals (subs string 1))
+          (get-array-vals (trim (subs string 1)))
           nil)))
 
 (defn object-parser [s]
       (let [string (trim s)]
         (if (= (first string) \{)
-          (get-object-vals (subs string 1))
+          (get-object-vals (trim (subs string 1)))
           nil)))
 
 (defn gen-parser [s]
