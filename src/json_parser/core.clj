@@ -65,52 +65,41 @@
              (= fst \") (let [remain (subs rst 1)] (if (empty? remain) [result nil] [result remain]))
              :else (recur (subs rst 1) (str result fst)))))))
 
-(defn get-array-vals [string]
-      (if (= (first string) \,)
+(defn get-arr-obj-vals [string arr]
+      (let [[end? comma-colon?] (if arr [#(= % \]) #(= % \,)] [#(= % \}) #(or (= % \,) (= % \:))])]
+        (if (= (first string) \,)
         (throw-error)
         (loop [[val remain] (gen-parser (trim string)), result []]
           (if remain
             (let [trimmed (trim remain) fst (first trimmed) rst (trim (subs trimmed 1)) res (conj result val)]
               (cond
-               (= fst \]) (if (empty? rst) [res nil] [res rst])
-               (= fst \,) (recur (gen-parser rst) res)
+               (end?) (if (empty? rst) [res nil] [res rst])
+               (comma-colon?) (recur (gen-parser rst) res)
                :else (throw-error)))
-            (throw-error)))))
-
-(defn get-object-vals [string]
-      (if (= (first string) \,)
-        (throw-error)
-        (loop [[val remain] (gen-parser (trim string)), result []]
-          (if remain
-            (let [trimmed (trim remain) fst (first trimmed) rst (trim (subs trimmed 1)) res (conj result val)]
-              (cond
-                (= fst \}) (let [result (apply hash-map res)] (if (empty? rst) [result nil] [result rst]))
-                (or (= fst \:) (= fst \,)) (recur (gen-parser rst) res)
-                :else (throw-error)))
-            (throw-error)))))
+            (throw-error))))))
 
 ;(defn get-object-vals [string]
 ;      (if (= (first string) \,)
 ;        (throw-error)
-;        (loop [remain string, key nil, value nil, result {}]
-;          (let [fst (first remain) rst (trim (subs remain 1))]
-;            (cond
-;              (nil? fst) (throw-error)
-;              (= fst \}) (let [result (if (or key value) (conj result (hash-map key value)) {})] (if (empty? rst) [result nil] [result rst]))
-;              (= fst \:) (if-let [[val remaining] (gen-parser rst)]
-;                           (recur (trim remaining) key val result)
-;                           (throw-error))
-;              (= fst \,) (if-let [[val remaining] (string-parser rst)]
-;                           (recur (trim remaining) val nil (conj result (hash-map key value)))
-;                           (throw-error))
-;              :else (if-let [[val remaining] (string-parser remain)]
-;                      (recur (trim remaining) val value result)
-;                      (throw-error)))))))
+;        (loop [[val remain] (gen-parser (trim string)), result []]
+;          (if remain
+;            (let [trimmed (trim remain) fst (first trimmed) rst (trim (subs trimmed 1)) res (conj result val)]
+;              (cond
+;                (= fst \}) (let [result (apply hash-map res)] (if (empty? rst) [result nil] [result rst]))
+;                (or (= fst \:) (= fst \,)) (recur (gen-parser rst) res)
+;                :else (throw-error)))
+;            (throw-error)))))
 
+(defn arr-obj-parser [s]
+      (let [string (trim s) fst (first string)]
+        (cond
+          (= fst \[) (get-arr-obj-vals (subs string 1) true)
+          (= fst \{) (update (get-arr-obj-vals (subs string 1) false) 0 #(apply hash-map %))
+          :else nil)))
 
-(defn array-parser [s] (let [string (trim s)] (if (= (first string) \[) (get-array-vals (subs string 1)) nil)))
-
-(defn object-parser [s] (let [string (trim s)] (if (= (first string) \{) (get-object-vals (subs string 1)) nil)))
+;(defn array-parser [s] (let [string (trim s)] (if (= (first string) \[) (get-array-vals (subs string 1)) nil)))
+;
+;(defn object-parser [s] (let [string (trim s)] (if (= (first string) \{) (get-object-vals (subs string 1)) nil)))
 
 (defn gen-parser [s]
       (let [null (null-parser s) bool (boolean-parser s) string (string-parser s)
