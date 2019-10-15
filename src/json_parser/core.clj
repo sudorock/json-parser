@@ -85,7 +85,8 @@
             (let [trimmed (trim remain) fst (first trimmed) rst (trim (subs trimmed 1)) res (conj result val)]
               (cond
                 (= fst \}) (let [result (apply hash-map res)] (if (empty? rst) [result nil] [result rst]))
-                (or (= fst \:) (= fst \,)) (recur (gen-parser rst) res)
+                (= fst \:) (recur (gen-parser rst) res)
+                (= fst \,) (recur (string-parser rst) res)
                 :else (throw-error)))
             (throw-error)))))
 
