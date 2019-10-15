@@ -58,6 +58,7 @@
                       (check-digit? snd) nil
                       (= snd \.) (if (check-digit? third) (get-number string) nil)
                       :else (let [remain (subs string 1)] (if (empty? remain) [0 nil] [0 remain])))
+         (check-digit? fst) (get-number string)
          (= fst \+) (get-number (subs string 1))
          (= fst \-) (update (get-number (subs string 1)) 0 #(- %))
          :else nil)))
@@ -100,7 +101,7 @@
             (let [fst (first remain) rst (clojure.string/trim (subs remain 1))]
               (cond
                 (nil? fst) (throw-error)
-                (= fst \}) (let [result (conj result (hash-map key value))] (if (empty? rst) [result nil] [result rst]))
+                (= fst \}) (let [result (if (or key value) (conj result (hash-map key value)) {})] (if (empty? rst) [result nil] [result rst]))
                 (= fst \:) (if-let [[val remaining] (gen-parser rst)]
                              (recur (clojure.string/trim remaining) key val result)
                              (throw-error))
