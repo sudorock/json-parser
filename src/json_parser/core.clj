@@ -77,31 +77,31 @@
              :else (recur (subs rst 1) (str result fst)))))))
 
 (defn get-array-vals [string]
-      (cond
-        (= (first string) \,) (throw-error)
-        (= (first string) \]) (let [rst (trim (subs string 1))] (if (empty? rst) [[] nil] [[] rst]))
-        :else (loop [[val remain] (gen-parser (trim string)), result []]
-                (if remain
-                  (let [trimmed (trim remain) fst (first trimmed) rst (trim (subs trimmed 1)) res (conj result val)]
-                    (cond
-                     (= fst \]) (if (empty? rst) [res nil] [res rst])
-                     (= fst \,) (recur (gen-parser rst) res)
-                     :else (throw-error)))
-                  (throw-error)))))
+      (condp = (first string)
+        \, (throw-error)
+        \] (let [rst (trim (subs string 1))] (if (empty? rst) [[] nil] [[] rst]))
+        (loop [[val remain] (gen-parser (trim string)), result []]
+          (if remain
+            (let [trimmed (trim remain) fst (first trimmed) rst (trim (subs trimmed 1)) res (conj result val)]
+              (condp = fst
+                \] (if (empty? rst) [res nil] [res rst])
+                \, (recur (gen-parser rst) res)
+               (throw-error)))
+            (throw-error)))))
 
 (defn get-object-vals [string]
-      (cond
-        (= (first string) \,) (throw-error)
-        (= (first string) \}) (let [rst (trim (subs string 1))] (if (empty? rst) [{} nil] [{} rst]))
-        :else (loop [[val remain] (gen-parser (trim string)), result []]
-                (if remain
-                  (let [trimmed (trim remain) fst (first trimmed) rst (trim (subs trimmed 1)) res (conj result val)]
-                    (cond
-                      (= fst \}) (let [result (apply hash-map res)] (if (empty? rst) [result nil] [result rst]))
-                      (= fst \:) (recur (gen-parser rst) res)
-                      (= fst \,) (recur (string-parser rst) res)
-                      :else (throw-error)))
-                  (throw-error)))))
+      (condp = (first string)
+        \, (throw-error)
+        \} (let [rst (trim (subs string 1))] (if (empty? rst) [{} nil] [{} rst]))
+        (loop [[val remain] (gen-parser (trim string)), result []]
+          (if remain
+            (let [trimmed (trim remain) fst (first trimmed) rst (trim (subs trimmed 1)) res (conj result val)]
+              (condp = fst
+                \} (let [result (apply hash-map res)] (if (empty? rst) [result nil] [result rst]))
+                \: (recur (gen-parser rst) res)
+                \, (recur (string-parser rst) res)
+                (throw-error)))
+            (throw-error)))))
 
 (defn array-parser [s] (let [string (trim s)] (if (= (first string) \[) (get-array-vals (trim (subs string 1))) nil)))
 
