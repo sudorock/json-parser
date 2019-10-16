@@ -11,7 +11,7 @@
 
 (defn null-parser [s] (if (starts-with? s "null") [nil (subs s 4)] nil))
 
-(defn boolean-parser [s] (cond (starts-with? s "true") [true (subs s 4)] (starts-with? s "false") [false (subs s 5)] :else nil))
+(defn boolean-parser [s] (condp starts-with? s "true" [true (subs s 4)] "false" [false (subs s 5)] nil))
 
 (defn number-after-e [prev string]
       (let [after-e (first string), sign-exists (or (= after-e \-) (= after-e \+)), sign (case after-e \- - \+ + +)]
@@ -19,9 +19,9 @@
           (loop [s (if sign-exists (subs string 1) string) result ""]
             (let [fst (first s)]
               (cond
-                (nil? fst) [(* prev (Math/pow 10 (sign (Integer/parseInt result)))) nil]
+                (nil? fst) [(* prev (Math/pow 10 (sign (Long/parseLong result)))) nil]
                 (check-digit? fst) (recur (subs s 1) (str result fst))
-                :else [(* prev (Math/pow 10 (sign (Integer/parseInt result)))) s])))
+                :else [(* prev (Math/pow 10 (sign (Long/parseLong result)))) s])))
           (throw-error))))
 
 (defn number-after-point [prev string]
@@ -37,11 +37,11 @@
       (loop [s string result ""]
         (let [fst (first s)]
           (cond
-            (nil? fst) (if (empty? s) [(Integer/parseInt result) nil] [(Integer/parseInt result) s])
+            (nil? fst) (if (empty? s) [(Long/parseLong result) nil] [(Long/parseLong result) s])
             (check-digit? fst) (recur (subs s 1) (str result fst))
             (= fst \.) (number-after-point (Double/parseDouble result) (subs s 1))
             (or (= fst \e) (= fst \E)) (number-after-e (Double/parseDouble result) (subs s 1))
-            :else [(Integer/parseInt result) s]))))
+            :else [(Long/parseLong result) s]))))
 
 (defn number-parser [string]
       (let [fst (first string) snd (second string) third (get string 2)]
@@ -103,17 +103,9 @@
                       :else (throw-error)))
                   (throw-error)))))
 
-(defn array-parser [s]
-      (let [string (trim s)]
-        (if (= (first string) \[)
-          (get-array-vals (trim (subs string 1)))
-          nil)))
+(defn array-parser [s] (let [string (trim s)] (if (= (first string) \[) (get-array-vals (trim (subs string 1))) nil)))
 
-(defn object-parser [s]
-      (let [string (trim s)]
-        (if (= (first string) \{)
-          (get-object-vals (trim (subs string 1)))
-          nil)))
+(defn object-parser [s] (let [string (trim s)] (if (= (first string) \{) (get-object-vals (trim (subs string 1))) nil)))
 
 (defn gen-parser [s]
       (let [null (null-parser s) bool (boolean-parser s) string (string-parser s)
