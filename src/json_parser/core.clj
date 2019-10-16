@@ -11,7 +11,7 @@
 
 (defn null-parser [s] (if (starts-with? s "null") [nil (subs s 4)] nil))
 
-(defn boolean-parser [s] (condp starts-with? s "true" [true (subs s 4)] "false" [false (subs s 5)] nil))
+(defn boolean-parser [s] (condp #(starts-with? %2 %1) s "true" [true (subs s 4)] "false" [false (subs s 5)] nil))
 
 (defn number-after-e [prev string]
       (let [after-e (first string), sign-exists (or (= after-e \-) (= after-e \+)), sign (case after-e \- - \+ + +)]
