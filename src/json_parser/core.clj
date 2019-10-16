@@ -5,17 +5,17 @@
 
 (declare gen-parser)
 
-(defn throw-error [] "Parse Error")
-
-(def esc-char {\\ \\, \t \tab, \n \newline, \f \formfeed, \b \backspace, \r \return, \" \", \/ \/, \u \u})
+(def esc-char {\\ \\, \t \tab, \n \newline, \f \formfeed, \b \backspace, \r \return, \" \", \/ \/})
 
 (defn check-digit? [ch] (if ch (and (<= (int ch) 57) (>= (int ch) 48)) nil))
+
+(defn throw-error [] "Parse Error")
+
+(defn resultify [result remaining] (if (empty? remaining) [result nil] [result remaining]))
 
 (defn null-parser [s] (if (starts-with? s "null") [nil (subs s 4)] nil))
 
 (defn boolean-parser [s] (condp #(starts-with? %2 %1) s "true" [true (subs s 4)] "false" [false (subs s 5)] nil))
-
-(defn resultify [result remaining] (if (empty? remaining) [result nil] [result remaining]))
 
 (defn number-after-e [prev string]
       (let [after-e (first string), sign-exists (or (= after-e \-) (= after-e \+)), sign (case after-e \- - \+ + +)]
