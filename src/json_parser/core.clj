@@ -61,13 +61,16 @@
       (let [esc (get esc-char (second rst))]
         (if (some? esc) esc false)))
 
+(defn get-hex [s]
+      (read-string s))
+
 (defn string-parser [string]
       (if ((complement starts-with?) string "\"")
         nil
         (loop [rst (subs string 1) result ""]
           (let [fst (first rst) esc (if (= fst \\) (get-esc rst) nil)]
            (cond
-             ;(and (= fst \\) (= (second rst) \u)) (recur (subs rst 1) result)
+             (and (= fst \\) (= (second rst) \u)) (recur (subs rst 6) (str result (get-hex (subs rst 0 6))))
              (some? esc) (if (false? esc) nil (recur (subs rst 2) (str result esc)))
              (or (= fst \tab) (= fst \newline)) nil
              (= fst \") (let [remain (subs rst 1)] (if (empty? remain) [result nil] [result remain]))
@@ -136,7 +139,7 @@
   (let [path "test/test_cases/pass@.json"]
     (loop [num 1 result []]
       (cond
-        (> num 4) result
+        (> num 6) result
         :else (recur (inc num) (conj result (slurp (clojure.string/replace path "@" (str num)))))))))
 
 (defn test-parser [test-cases]
