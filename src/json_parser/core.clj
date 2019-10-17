@@ -4,70 +4,25 @@
 (declare gen-parser boolean-parser null-parser number-parser string-parser array-parser object-parser)
 (def parsers (vector boolean-parser null-parser number-parser string-parser array-parser object-parser))
 
-;; util functions ;;
+;; util ;;
 (def esc-char {\\ \\, \t \tab, \n \newline, \f \formfeed, \b \backspace, \r \return, \" \", \/ \/})
 (defn get-esc [rst] (let [esc (get esc-char (second rst))] (if (some? esc) esc false)))
 (defn check-digit? [ch] (if ch (and (<= (int ch) 57) (>= (int ch) 48)) nil))
 (defn throw-error [] "Parse Error")
 (defn resultify [result remaining] (if (empty? remaining) [result nil] [result remaining]))
-
-;; parsers ;;
-(defn gen-parser [s] (some identity (map #(% s) parsers)))
-
-(defn null-parser [s] (if (starts-with? s "null") [nil (subs s 4)] nil))
-
-(defn boolean-parser [s] (condp #(starts-with? %2 %1) s "true" [true (subs s 4)] "false" [false (subs s 5)] nil))
-
-;(defn number-after-e [prev string]
-;      (let [after-e (first string), sign-exists (or (= after-e \-) (= after-e \+)), sign (case after-e \- - \+ + +)]
-;        (if (or (check-digit? after-e) sign-exists)
-;          (loop [s (if sign-exists (subs string 1) string) result ""]
-;            (let [fst (first s)]
-;              (cond
-;                (nil? fst) [(* prev (Math/pow 10 (sign (Long/parseLong result)))) nil]
-;                (check-digit? fst) (recur (subs s 1) (str result fst))
-;                :else [(* prev (Math/pow 10 (sign (Long/parseLong result)))) s])))
-;          (throw-error))))
-;
-;(defn number-after-point [prev string]
-;      (loop [s string, result "0."]
-;        (let [fst (first s)]
-;         (cond
-;           (nil? fst) (resultify (+ prev (Double/parseDouble result)) s)
-;           (check-digit? fst) (recur (subs s 1) (str result fst))
-;           (or (= fst \e) (= fst \E)) (number-after-e (+ prev (Double/parseDouble result)) (subs s 1))
-;           :else [(+ prev (Double/parseDouble result)) s]))))
-
-;(defn get-number [string]
-;      (loop [s string result "" dbl false]
-;        (let [fst (first s)]
-;          (cond
-;            (nil? fst) (if dbl (resultify (Double/parseDouble result) s) (resultify (Long/parseLong result) s))
-;            (or (= fst \+) (check-digit? fst)) (recur (subs s 1) (str result fst))
-;            (= fst \.) (number-after-point (Double/parseDouble result) (subs s 1))
-;            (or (= fst \e) (= fst \E)) (number-after-e (Double/parseDouble result) (subs s 1))
-;            :else [(Long/parseLong result) s]))))
-;
-;(defn number-parser [string]
-;      (let [fst (first string) snd (second string) third (get string 2)]
-;        (cond
-;          (= fst \0) (cond
-;                       (check-digit? snd) nil
-;                       (= snd \.) (if (check-digit? third) (get-number string) nil)
-;                       :else (resultify 0 (subs string 1)))
-;          (= fst \+) (get-number (subs string 1))
-;          (= fst \-) (update (get-number (subs string 1)) 0 #(- %))
-;          (check-digit? fst) (get-number string)
-;          :else nil)))
-
 (defn resultify-num [result s dbl] (if dbl (resultify (Double/parseDouble result) s) (resultify (Long/parseLong result) s)))
-
 (defn e-cond? [e snd thd] (and (not e) (or (check-digit? snd) (and (or (= snd \+) (= snd \-)) (check-digit? thd)))))
 (defn point-cond? [point snd] (and (not point) (check-digit? snd)))
+(defn json-cond? [parsed remaining] (and (not remaining) (or (vector? parsed) (map? parsed))))
+
+;; parser ;;
+(defn null-parser [string] (if (starts-with? string "null") [nil (subs string 4)] nil))
+
+(defn boolean-parser [string] (condp #(starts-with? %2 %1) string "true" [true (subs string 4)] "false" [false (subs string 5)] nil))
 
 (defn get-number [string]
       (loop [s (subs string 1), result (str (first string)), point false, dbl false, e false]
-        (let [fst (first s) snd (second s) thd (second (rest s))]
+        (let [fst (first s), snd (second s), thd (second (rest s))]
           (cond
             (nil? fst) (resultify-num result s dbl)
             (check-digit? fst) (recur (subs s 1) (str result fst) point dbl e)
@@ -80,7 +35,7 @@
             :else (resultify-num result s dbl)))))
 
 (defn number-parser [string]
-      (let [fst (first string) snd (second string) third (get string 2)]
+      (let [fst (first string), snd (second string), third (get string 2)]
         (cond
           (= fst \0) (cond
                        (check-digit? snd) nil
@@ -93,7 +48,7 @@
       (if ((complement starts-with?) string "\"")
         nil
         (loop [rst (subs string 1) result ""]
-          (let [fst (first rst) esc (if (= fst \\) (get-esc rst) nil)]
+          (let [fst (first rst), esc (if (= fst \\) (get-esc rst) nil)]
            (cond
              (and (= fst \\) (= (second rst) \u)) (recur (subs rst 6) (str result (read-string (subs rst 0 6))))
              (some? esc) (if (false? esc) nil (recur (subs rst 2) (str result esc)))
@@ -124,15 +79,16 @@
                 (throw-error)))
             (throw-error)))))
 
-(defn array-parser [s] (let [string (trim s)] (if (= (first string) \[) (get-array-vals (trim (subs string 1))) nil)))
+(defn array-parser [string] (let [s (trim string)] (if (= (first s) \[) (get-array-vals (trim (subs s 1))) nil)))
 
-(defn object-parser [s] (let [string (trim s)] (if (= (first string) \{) (get-object-vals (trim (subs string 1))) nil)))
+(defn object-parser [string] (let [s (trim string)] (if (= (first s) \{) (get-object-vals (trim (subs s 1))) nil)))
 
-(defn json-parser [s]
-      (let [string (trim s) [parsed remaining] (gen-parser string)]
-        (if (or (vector? parsed) (map? parsed))
-          (if remaining (throw-error) parsed)
-          (throw-error))))
+(defn gen-parser [string] (some identity (map #(% string) parsers)))
+
+(defn json-parser [string]
+      (if-let [[parsed remaining] (gen-parser (trim string))]
+        (if (json-cond? parsed remaining) parsed (throw-error))
+        (throw-error)))
 
 ;; factory parser ;;
 
