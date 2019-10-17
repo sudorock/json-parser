@@ -1,9 +1,10 @@
-(ns json-parser.core
-  (:require [clojure.data.json :as json]))
+(ns json-parser.core)
 
 (refer 'clojure.string :only '[trim starts-with?])
 
-(declare gen-parser)
+(declare gen-parser boolean-parser null-parser number-parser string-parser array-parser object-parser)
+(def parsers (vector boolean-parser null-parser number-parser string-parser array-parser object-parser))
+(defn gen-parser [s] (some identity (map #(% s) parsers)))
 
 (def esc-char {\\ \\, \t \tab, \n \newline, \f \formfeed, \b \backspace, \r \return, \" \", \/ \/})
 
@@ -46,6 +47,16 @@
             (= fst \.) (number-after-point (Double/parseDouble result) (subs s 1))
             (or (= fst \e) (= fst \E)) (number-after-e (Double/parseDouble result) (subs s 1))
             :else [(Long/parseLong result) s]))))
+
+;(defn get-number [string]
+;      (loop [s string result "" dbl false]
+;        (let [fst (first s)]
+;          (cond
+;            (nil? fst) (if dbl (resultify (Double/parseDouble result) s) (resultify (Long/parseLong result) s))
+;            (or (= fst \+) (check-digit? fst)) (recur (subs s 1) (str result fst))
+;            (= fst \.) (number-after-point (Double/parseDouble result) (subs s 1))
+;            (or (= fst \e) (= fst \E)) (number-after-e (Double/parseDouble result) (subs s 1))
+;            :else [(Long/parseLong result) s]))))
 
 (defn number-parser [string]
       (let [fst (first string) snd (second string) third (get string 2)]
@@ -100,16 +111,26 @@
 
 (defn object-parser [s] (let [string (trim s)] (if (= (first string) \{) (get-object-vals (trim (subs string 1))) nil)))
 
-(defn gen-parser [s]
-      (let [null (null-parser s) bool (boolean-parser s) string (string-parser s)
-            number (number-parser s) array (array-parser s) obj (object-parser s)]
-        (or null bool string number array obj)))
+;(defn gen-parser [s]
+;      (let [null (null-parser s) bool (boolean-parser s) string (string-parser s)
+;            number (number-parser s) array (array-parser s) obj (object-parser s)]
+;        (or null bool string number array obj)))
 
 (defn json-parser [s]
       (let [string (trim s) [parsed remaining] (gen-parser string)]
         (if (or (vector? parsed) (map? parsed))
           (if remaining (throw-error) parsed)
           (throw-error))))
+
+(defn factory-parser [s]
+      (condp #(starts-with? %2 %1) s
+        "null" null-parser
+        "true" boolean-parser
+        "false" boolean-parser
+        "\"" string-parser
+        "[" array-parser
+        "{" object-parser
+        (throw-error)))
 
 ;; Testing ;;
 
