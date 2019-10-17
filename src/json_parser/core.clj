@@ -55,7 +55,6 @@
               (= fst \") (resultify result (subs rst 1))
               :else (recur (subs rst 1) (str result fst)))))))
 
-
 (defn get-array-vals [string]
       (condp = (first string) \, (throw-error) \] (resultify [] (trim (subs string 1)))
         (loop [[val remain] (gen-parser (trim string)), result []]
@@ -102,7 +101,7 @@
         "{" object-parser
         (throw-error)))
 
-;; Testing ;;
+;; testing ;;
 
 (def fail-cases
   (let [path "test/test_cases/fail@.json"]
