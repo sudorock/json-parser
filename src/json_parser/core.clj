@@ -7,7 +7,7 @@
 ;; util ;;
 (def esc-char {\\ \\, \t \tab, \n \newline, \f \formfeed, \b \backspace, \r \return, \" \", \/ \/})
 (defn get-esc [rst] (let [esc (get esc-char (second rst))] (if (some? esc) esc false)))
-(defn check-digit? [ch] (if ch (and (<= (int ch) 57) (>= (int ch) 48)) nil))
+(defn check-digit? [ch] (when ch (and (<= (int ch) 57) (>= (int ch) 48))))
 (defn throw-error [] "Parse Error")
 (defn resultify [result remaining] (if (empty? remaining) [result nil] [result remaining]))
 (defn resultify-num [result s dbl] (if dbl (resultify (Double/parseDouble result) s) (resultify (Long/parseLong result) s)))
@@ -16,7 +16,7 @@
 (defn json-cond? [parsed remaining] (and (not remaining) (or (vector? parsed) (map? parsed))))
 
 ;; parser ;;
-(defn null-parser [string] (if (starts-with? string "null") [nil (subs string 4)] nil))
+(defn null-parser [string] (when (starts-with? string "null") [nil (subs string 4)]))
 
 (defn boolean-parser [string] (condp #(starts-with? %2 %1) string "true" [true (subs string 4)] "false" [false (subs string 5)] nil))
 
@@ -39,22 +39,22 @@
         (cond
           (= fst \0) (cond
                        (check-digit? snd) nil
-                       (= snd \.) (if (check-digit? third) (get-number string) nil)
+                       (= snd \.) (when (check-digit? third) (get-number string))
                        :else (resultify 0 (subs string 1)))
           (or (= fst \+) (= fst \-) (check-digit? fst)) (get-number string)
           :else nil)))
 
 (defn string-parser [string]
-      (if ((complement starts-with?) string "\"")
-        nil
-        (loop [rst (subs string 1) result ""]
-          (let [fst (first rst), esc (if (= fst \\) (get-esc rst) nil)]
-           (cond
-             (and (= fst \\) (= (second rst) \u)) (recur (subs rst 6) (str result (read-string (subs rst 0 6))))
-             (some? esc) (if (false? esc) nil (recur (subs rst 2) (str result esc)))
-             (or (= fst \tab) (= fst \newline)) nil
-             (= fst \") (resultify result (subs rst 1))
-             :else (recur (subs rst 1) (str result fst)))))))
+      (when (starts-with? string "\"")
+        (loop [rst (subs string 1), result ""]
+          (let [fst (first rst), esc (when (= fst \\) (get-esc rst))]
+            (cond
+              (and (= fst \\) (= (second rst) \u)) (recur (subs rst 6) (str result (read-string (subs rst 0 6))))
+              (some? esc) (when esc (recur (subs rst 2) (str result esc)))
+              (or (= fst \tab) (= fst \newline)) nil
+              (= fst \") (resultify result (subs rst 1))
+              :else (recur (subs rst 1) (str result fst)))))))
+
 
 (defn get-array-vals [string]
       (condp = (first string) \, (throw-error) \] (resultify [] (trim (subs string 1)))
@@ -79,9 +79,9 @@
                 (throw-error)))
             (throw-error)))))
 
-(defn array-parser [string] (let [s (trim string)] (if (= (first s) \[) (get-array-vals (trim (subs s 1))) nil)))
+(defn array-parser [string] (let [s (trim string)] (when (= (first s) \[) (get-array-vals (trim (subs s 1))))))
 
-(defn object-parser [string] (let [s (trim string)] (if (= (first s) \{) (get-object-vals (trim (subs s 1))) nil)))
+(defn object-parser [string] (let [s (trim string)] (when (= (first s) \{) (get-object-vals (trim (subs s 1))))))
 
 (defn gen-parser [string] (some identity (map #(% string) parsers)))
 
@@ -107,22 +107,21 @@
 (def fail-cases
   (let [path "test/test_cases/fail@.json"]
     (loop [num 1 result []]
-      (cond
-        (> num 33) result
-        :else (recur (inc num) (conj result (slurp (clojure.string/replace path "@" (str num)))))))))
+      (if (> num 33)
+        result
+        (recur (inc num) (conj result (slurp (clojure.string/replace path "@" (str num)))))))))
 
 (def pass-cases
   (let [path "test/test_cases/pass@.json"]
     (loop [num 1 result []]
-      (cond
-        (> num 6) result
-        :else (recur (inc num) (conj result (slurp (clojure.string/replace path "@" (str num)))))))))
+      (if (> num 6)
+        result
+        (recur (inc num) (conj result (slurp (clojure.string/replace path "@" (str num)))))))))
 
 (defn test-parser [test-cases]
       (loop [test-case 0]
-        (if
-          (>= test-case (count test-cases))
-          nil
+        (when
+          (< test-case (count test-cases))
           (do
             (println "Test case No.:" (inc test-case) \newline (test-cases test-case) \newline (json-parser (test-cases test-case)))
             (println "---------------------------------------")
