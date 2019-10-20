@@ -7,17 +7,13 @@
 (defn get-esc [s] (when-let [esc (re-find #"^\\(?:(?:[\\|t|n|f|b|r|\"|\/])|(?:u[a-fA-F\d]{4}))" s)]
                     [(escape (str (read-string esc)) {\t \tab \n \newline \f \formfeed \b \backspace \r \return}) (subs s (count esc))]))
 
-(let [num-regex #"^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][-+]?\d+)?"]
-  (defn get-num [s] (re-find num-regex s))
-  (defn split-num [s] (try ((split s num-regex) 1) (catch Exception e nil))))
-
 (defn null-parser [s] (when (starts-with? s "null") [nil (subs s 4)]))
 (defn bool-parser [s] (condp #(starts-with? %2 %1) s "true" [true (subs s 4)] "false" [false (subs s 5)] nil))
 
 (defn num-parser [s]
-      (when-let [num-string (get-num s)]
-        (try [(Integer/parseInt num-string) (split-num s)]
-             (catch Exception e [(Double/parseDouble num-string) (split-num s)]))))
+      (when-let [num-str (re-find #"^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][-+]?\d+)?" s)]
+        (try [(Integer/parseInt num-str) (subs s (count num-str))]
+             (catch Exception e [(Double/parseDouble num-str) (subs s (count num-str))]))))
 
 (defn str-parser [s]
       (when (starts-with? s "\"")
