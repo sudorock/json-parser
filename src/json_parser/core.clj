@@ -1,6 +1,6 @@
-(ns json-parser.core (:require [json-parser.utils :refer [get-num split-num trim-start get-esc]]))
+(ns json-parser.core (:require [json-parser.utils :refer [get-num split-num trim-s get-esc]]))
 
-(refer 'clojure.string :only '[trim starts-with?])
+(refer 'clojure.string :only '[starts-with?])
 (declare value-parser bool-parser null-parser number-parser string-parser array-parser object-parser)
 
 ;; utils ;;
@@ -30,37 +30,37 @@
 
 (defn array-parser [s]
       (when (re-find #"^\[(?!\s*,)" s)
-        (loop [rst (trim-start (subs s 1)), result []]
+        (loop [rst (trim-s (subs s 1)), result []]
           (with-out-str (println rst))
           (cond
             (nil? rst) (throw-error)
             (= (first rst) \]) (resultify result (subs rst 1))
-            (= (first rst) \,) (let [[res remain] (value-parser (subs rst 1))] (recur (trim-start remain) (conj result res)))
+            (= (first rst) \,) (let [[res remain] (value-parser (subs rst 1))] (recur (trim-s remain) (conj result res)))
             :else (let [[res remain] (value-parser rst)] (recur remain (conj result res)))))))
 
 (defn object-parser [s]
       (when (re-find #"^\{(?!\s*,)" s)
-        (loop [rst (trim-start (subs s 1)), result []]
+        (loop [rst (trim-s (subs s 1)), result []]
           (cond
             (nil? rst) (throw-error)
             (= (first rst) \}) (resultify (apply hash-map result) (subs rst 1))
-            (= (first rst) \:) (let [[res remain] (value-parser (subs rst 1))] (recur (trim-start remain) (conj result res)))
-            (= (first rst) \,) (let [[res remain] (string-parser (trim-start (subs rst 1)))] (recur (trim-start remain) (conj result res)))
+            (= (first rst) \:) (let [[res remain] (value-parser (subs rst 1))] (recur (trim-s remain) (conj result res)))
+            (= (first rst) \,) (let [[res remain] (string-parser (trim-s (subs rst 1)))] (recur (trim-s remain) (conj result res)))
             :else (let [[res remain] (string-parser rst)] (recur remain (conj result res)))))))
 
-(defn value-parser [string] (some identity (map #(% (trim-start string)) parsers)))
+(defn value-parser [string] (some identity (map #(% (trim-s string)) parsers)))
 
 (defn json-parser [string]
-      (if-let [[parsed remaining] (value-parser (trim string))]
+      (if-let [[parsed remaining] (value-parser (trim-s string))]
         (if (json-cond? parsed remaining) parsed (throw-error))
         (throw-error)))
 
 ;(defn value-parser [s]
-;      (if-let [[parsed remaining] (some identity (map #(% (trim-start s)) parsers))]
+;      (if-let [[parsed remaining] (some identity (map #(% (trim-s s)) parsers))]
 ;        (cond
 ;          (and (nil? remaining) (or (vector? parsed) (map? parsed))) parsed
-;          (some? remaining) (value-parser (trim-start s))
-;          :else (throw-error))
+;          (some? remaining)
+;          (throw-error))
 ;        (throw-error)))
 
 ;; factory parser ;;
@@ -99,64 +99,3 @@
             (println "Test case No.:" (inc test-case) \newline (test-cases test-case) \newline (json-parser (test-cases test-case)))
             (println "---------------------------------------")
             (recur (inc test-case))))))
-
-
-;; number parser in a regex
-;; -?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?
-
-;(defn get-array-vals [s]
-;      (condp = (first s)
-;        \] (resultify [] (subs s 1))
-;        (loop [[val remain] (value-parser s), result []]
-;          (if remain
-;            (let [trimmed (trim-start remain) fst (first trimmed) rst (trim-start (subs trimmed 1)) res (conj result val)]
-;              (condp = fst
-;                \] (resultify res rst)
-;                \, (recur (value-parser rst) res)
-;                (throw-error)))
-;            (throw-error)))))
-
-;(defn array-parser [s]
-;      (when (re-find #"^\[(?!\s*,)" s)
-;        (condp = (first (trim s))
-;          \] (resultify [] (trim (subs s 1)))
-;          (loop [[val remain] (value-parser (trim (subs s 1))), result []]
-;            (if remain
-;              (let [trimmed (trim remain) fst (first trimmed) rst (trim (subs trimmed 1)) res (conj result val)]
-;                (condp = fst
-;                  \] (resultify res rst)
-;                  \, (recur (value-parser rst) res)
-;                  (throw-error)))
-;              (throw-error))))))
-;
-;(defn object-parser [s]
-;      (when (re-find #"^\{(?!\s*,)" s)
-;        (condp = (first (trim (subs s 1)))
-;          \} (resultify {} (trim (subs s 1)))
-;          (loop [[val remain] (string-parser (trim (subs s 1))), result []]
-;            (if remain
-;              (let [trimmed (trim remain) fst (first trimmed) rst (trim (subs trimmed 1)) res (conj result val)]
-;                (condp = fst
-;                  \} (resultify (apply hash-map res) rst)
-;                  \: (recur (value-parser rst) res)
-;                  \, (recur (string-parser rst) res)
-;                  (throw-error)))
-;              (throw-error))))))
-
-;(defn get-object-vals [string]
-;      (condp = (first string) \, (throw-error) \} (resultify {} (trim (subs string 1)))
-;                              (loop [[val remain] (value-parser (trim string)), result []]
-;                                (if remain
-;                                  (let [trimmed (trim remain) fst (first trimmed) rst (trim (subs trimmed 1)) res (conj result val)]
-;                                    (condp = fst
-;                                      \} (resultify (apply hash-map res) rst)
-;                                      \: (recur (value-parser rst) res)
-;                                      \, (recur (string-parser rst) res)
-;                                      (throw-error)))
-;                                  (throw-error)))))
-
-
-;(defn array-parser [s]
-;      (when (= (first s) \[)
-;        (get-array-vals (trim-start (subs s 1)))))
-;(defn object-parser [s] (when (= (first s) \{) (get-object-vals (trim-start (subs s 1)))))
