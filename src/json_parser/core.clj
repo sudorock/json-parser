@@ -2,10 +2,10 @@
 (declare val-parser)
 
 (defn trim-s [s] (try (trim s) (catch Exception e "")))
-(defn throw-error [] "Parse Error")
 
-(defn get-esc [s] (when-let [esc (re-find #"^\\(?:(?:[\\|t|n|f|b|r|\"|\/])|(?:u[a-fA-F\d]{4}))" s)]
-                    [(escape (str (read-string esc)) {\t \tab \n \newline \f \formfeed \b \backspace \r \return}) (subs s (count esc))]))
+(defn get-esc [s]
+      (when-let [esc (re-find #"^\\(?:(?:[\\|t|n|f|b|r|\"|\/])|(?:u[a-fA-F\d]{4}))" s)]
+        [(escape (str (read-string esc)) {\t \tab \n \newline \f \formfeed \b \backspace \r \return}) (subs s (count esc))]))
 
 (defn null-parser [s] (when (starts-with? s "null") [nil (subs s 4)]))
 (defn bool-parser [s] (condp #(starts-with? %2 %1) s "true" [true (subs s 4)] "false" [false (subs s 5)] nil))
@@ -43,8 +43,10 @@
             (= (first rst) \,) (let [[res rmn] (str-parser (trim-s (subs rst 1)))] (recur (trim-s rmn) (conj result res)))
             :else (let [[res rmn] (str-parser rst)] (recur rmn (conj result res)))))))
 
-(defn val-parser [s] (reduce #(or %1 (%2 (trim-s s))) nil [bool-parser null-parser num-parser str-parser arr-parser obj-parser]))
+(defn val-parser [s]
+      (reduce #(or %1 (%2 (trim-s s))) nil [bool-parser null-parser num-parser str-parser arr-parser obj-parser]))
 
-(defn json-parser [s] (if-let [[res rst] (val-parser s)]
-                        (if (and (empty? rst) (or (vector? res) (map? res))) res (throw-error))
-                        (throw-error)))
+(defn json-parser [s]
+      (if-let [[res rst] (val-parser s)]
+        (if (and (empty? rst) (or (vector? res) (map? res))) res "Parse Error")
+        "Parse Error"))
