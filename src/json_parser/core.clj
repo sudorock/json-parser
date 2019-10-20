@@ -1,15 +1,14 @@
-(ns json-parser.core (:require [json-parser.utils :refer [get-num split-num trim-s get-esc]]))
+(ns json-parser.core (:require [json-parser.utils :refer [get-num split-num trim-s get-esc throw-error]]))
 (refer 'clojure.string :only '[starts-with?])
 (declare value-parser)
 
-;; utils ;;
-(defn throw-error [] "Parse Error")
-(defn resultify [result remaining] (if (empty? remaining) [result nil] [result remaining]))
+(defn null-parser [string] (when (starts-with? string "null") [nil (subs string 4)]))
+(defn bool-parser [string] (condp #(starts-with? %2 %1) string "true" [true (subs string 4)] "false" [false (subs string 5)] nil))
 
 (defn num-parser [s]
       (when-let [num-string (get-num s)]
-        (try (resultify (Integer/parseInt num-string) (split-num s))
-             (catch Exception e (resultify (Double/parseDouble num-string) (split-num s))))))
+        (try [(Integer/parseInt num-string) (split-num s)]
+             (catch Exception e [(Double/parseDouble num-string) (split-num s)]))))
 
 (defn str-parser [string]
       (when (starts-with? string "\"")
@@ -19,19 +18,15 @@
               (and (= fst \\) (= (second rst) \u)) (recur (subs rst 6) (str result (read-string (subs rst 0 6))))
               (some? esc) (when esc (recur (subs rst 2) (str result esc)))
               (or (= fst \tab) (= fst \newline)) nil
-              (= fst \") (resultify result (subs rst 1))
+              (= fst \") [result (subs rst 1)]
               :else (recur (subs rst 1) (str result fst)))))))
-
-(defn null-parser [string] (when (starts-with? string "null") [nil (subs string 4)]))
-(defn bool-parser [string] (condp #(starts-with? %2 %1) string "true" [true (subs string 4)] "false" [false (subs string 5)] nil))
 
 (defn arr-parser [s]
       (when (re-find #"^\[(?!\s*,)" s)
         (loop [rst (trim-s (subs s 1)), result []]
-          ;(println result rst)
           (cond
-            (nil? rst) (throw-error)
-            (= (first rst) \]) (resultify result (subs rst 1))
+            (empty? rst) nil
+            (= (first rst) \]) [result (subs rst 1)]
             (= (first rst) \,) (let [[res remain] (value-parser (subs rst 1))] (recur (trim-s remain) (conj result res)))
             :else (let [[res remain] (value-parser rst)] (recur remain (conj result res)))))))
 
@@ -39,8 +34,8 @@
       (when (re-find #"^\{(?!\s*,)" s)
         (loop [rst (trim-s (subs s 1)), result []]
           (cond
-            (nil? rst) (throw-error)
-            (= (first rst) \}) (resultify (apply hash-map result) (subs rst 1))
+            (empty? rst) nil
+            (= (first rst) \}) [(apply hash-map result) (subs rst 1)]
             (= (first rst) \:) (let [[res remain] (value-parser (subs rst 1))] (recur (trim-s remain) (conj result res)))
             (= (first rst) \,) (let [[res remain] (str-parser (trim-s (subs rst 1)))] (recur (trim-s remain) (conj result res)))
             :else (let [[res remain] (str-parser rst)] (recur remain (conj result res)))))))
@@ -49,7 +44,7 @@
 
 (defn json-parser [s]
       (if-let [[res rst] (value-parser s)]
-        (if (and (not rst) (or (vector? res) (map? res))) res (throw-error))
+        (if (and (empty? rst) (or (vector? res) (map? res))) res (throw-error))
         (throw-error)))
 
 ;; factory parser ;;
