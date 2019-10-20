@@ -45,61 +45,6 @@
 
 (defn val-parser [s] (reduce #(or %1 (%2 (trim-s s))) nil [bool-parser null-parser num-parser str-parser arr-parser obj-parser]))
 
-(defn json-parser [s]
-      (if-let [[res rst] (val-parser s)]
-        (if (and (empty? rst) (or (vector? res) (map? res))) res (throw-error))
-        (throw-error)))
-
-(def fail-cases
-  (let [path "test/test_cases/fail@.json"]
-    (loop [num 1 result []]
-      (if (> num 33)
-        result
-        (recur (inc num) (conj result (slurp (clojure.string/replace path "@" (str num)))))))))
-
-(def pass-cases
-  (let [path "test/test_cases/pass@.json"]
-    (loop [num 1 result []]
-      (if (> num 6)
-        result
-        (recur (inc num) (conj result (slurp (clojure.string/replace path "@" (str num)))))))))
-
-(defn test-parser [test-cases]
-      (loop [test-case 0]
-        (when
-          (< test-case (count test-cases))
-          (do
-            (println "Test case No.:" (inc test-case) \newline (test-cases test-case) \newline (json-parser (test-cases test-case)))
-            (println "---------------------------------------")
-            (recur (inc test-case))))))
-
-
-;#"^\\(?:(?:[\\|\t|\n|\f|\r|\"|\/])|(?:u[a-fA-F\d]{4}))"
-
-;; /^\s*(-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?)\s*/
-
-;; ^(-?(0|[1-9]\d*)(\.\d+)?([eE][+-]?\d+)?)
-
-;; "^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?"
-
-;; "^\\u[ABCDEFabcdef\d]{4}"
-
-;#"^(?:\\u[ABCDEFabcdef\d]{4})"
-;#"^(?:[\\\\|\\t|\\n|\\f|\\r|\\b|\\\"|\\/])|(?:u[a-fA-F\d]{4})"
-
-;(def esc-char {\\ \\, \t \tab, \n \newline, \f \formfeed, \b \backspace, \r \return, \" \", \/ \/})
-;(defn get-esc [s] (let [esc (get esc-char (second s))] (if (some? esc) esc false)))
-
-;(defn str-parser [s]
-;      (when (clojure.string/starts-with? s "\"")
-;        (loop [rst (subs s 1), result ""]
-;          (let [fst (first rst), esc (when (= fst \\) (get-esc rst))]
-;            (cond
-;              (and (= fst \\) (= (second rst) \u)) (recur (subs rst 6) (str result (read-string (subs rst 0 6))))
-;              (some? esc) (when esc (recur (subs rst 2) (str result esc)))
-;              (or (= fst \tab) (= fst \newline)) nil
-;              (= fst \") [result (subs rst 1)]
-;              :else (recur (subs rst 1) (str result fst)))))))
-
-
-;; #"^\\(?:(?:[\\|t|n|f|b|r|\"|\/])|(?:u[a-fA-F\d]{4}))"
+(defn json-parser [s] (if-let [[res rst] (val-parser s)]
+                        (if (and (empty? rst) (or (vector? res) (map? res))) res (throw-error))
+                        (throw-error)))
