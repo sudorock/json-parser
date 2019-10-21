@@ -1,5 +1,4 @@
-(ns json-parser.core
-  (:require [clojure.string :refer [trim starts-with? escape split]]))
+(ns json-parser.core (:require [clojure.string :refer [trim starts-with? escape split]]))
 (declare val-parser)
 
 (defn trim-s [s] (try (trim s) (catch Exception e "")))
