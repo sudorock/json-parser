@@ -19,9 +19,9 @@
       (when (starts-with? s "\"")
         (loop [rst (subs s 1), result ""]
          (cond
+             (= (first rst) \") [result (subs rst 1)]
              (= (first rst) \\) (when-let [[res rmn] (get-esc rst)] (recur rmn (str result res)))
              (or (= (first rst) \tab) (= (first rst) \newline)) nil
-             (= (first rst) \") [result (subs rst 1)]
              :else (recur (subs rst 1) (str result (first rst)))))))
 
 (defn arr-parser [s]
