@@ -10,7 +10,7 @@
 (def pass-cases
   (let [path "test/test_cases/pass@.json"]
     (loop [num 1 result []]
-      (if (> num 6)
+      (if (> num 5)
         result
         (recur (inc num) (conj result (slurp (clojure.string/replace path "@" (str num)))))))))
 

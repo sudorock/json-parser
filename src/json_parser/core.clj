@@ -2,7 +2,7 @@
 (declare val-parser)
 
 (defn get-esc [s]
-  (when-let [esc (re-find #"^\\(?:(?:[\\|t|n|f|b|r|\"|\/])|(?:u[[0-9]a-fA-F]{4}))" s)]
+  (when-let [esc (re-find #"^\\(?:(?:[\\|t|n|f|b|r|\"|\/])|(?:u[0-9a-fA-F]{4}))" s)]
     [(escape (str (read-string esc)) {\t \tab \n \newline \f \formfeed \b \backspace \r \return}) (subs s (count esc))]))
 
 (defn null-parser [s] (when (starts-with? s "null") [nil (subs s 4)]))
